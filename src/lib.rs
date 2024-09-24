@@ -1,10 +1,30 @@
+use std::fs;
+
 use abi_stable::std_types::{ROption, RString, RVec};
 use anyrun_plugin::*;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct Config {
+    prefix: String,
+    max_entries: usize,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            prefix: ":nix".to_string(),
+            max_entries: 3,
+        }
+    }
+}
 
 #[init]
-fn init(config_dir: RString) {
-    // Your initialization code. This is run in another thread.
-    // The return type is the data you want to share between functions
+fn init(config_dir: RString) -> Config {
+    match fs::read_to_string(format!("{}/nix.ron", config_dir)) {
+        Ok(content) => ron::from_str(&content).unwrap_or_default(),
+        Err(_) => Config::default(),
+    }
 }
 
 #[info]
