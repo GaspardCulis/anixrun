@@ -58,6 +58,7 @@ dependencies = [
  "anyrun-plugin",
  "ron",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
