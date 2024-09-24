@@ -28,14 +28,17 @@ impl SearchEngine {
                     .unwrap_or(&Map::new())
                     .iter()
                     .take(config.max_entries)
-                    .map(|(package_name, metadata)| {
+                    .map(|(_, metadata)| {
+                        let package_name =
+                            metadata.get("pname").and_then(Value::as_str).unwrap_or("");
+
                         let description = metadata
                             .get("description")
                             .and_then(Value::as_str)
                             .unwrap_or("");
 
                         Match {
-                            title: package_name.clone().into(),
+                            title: package_name.into(),
                             icon: ROption::RSome("".into()),
                             use_pango: false,
                             description: ROption::RSome(description.into()),
