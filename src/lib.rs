@@ -1,8 +1,10 @@
 use std::fs;
+use std::process::Command;
 
 use abi_stable::std_types::{ROption, RString, RVec};
 use anyrun_plugin::*;
 use serde::Deserialize;
+use serde_json::{json, Map, Value};
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -30,23 +32,53 @@ fn init(config_dir: RString) -> Config {
 #[info]
 fn info() -> PluginInfo {
     PluginInfo {
-        name: "Demo".into(),
-        icon: "help-about".into(), // Icon from the icon theme
+        name: "Anixrun".into(),
+        icon: "flake".into(), // Icon from the icon theme
     }
 }
 
 #[get_matches]
-fn get_matches(input: RString) -> RVec<Match> {
-    // The logic to get matches from the input text in the `input` argument.
-    // The `data` is a mutable reference to the shared data type later specified.
-    vec![Match {
-        title: "Test match".into(),
-        icon: ROption::RSome("help-about".into()),
-        use_pango: false,
-        description: ROption::RSome("Test match for the plugin API demo".into()),
-        id: ROption::RNone, // The ID can be used for identifying the match later, is not required
-    }]
-    .into()
+fn get_matches(input: RString, config: &Config) -> RVec<Match> {
+    let input = if let Some(input) = input.strip_prefix(&config.prefix) {
+        input.trim()
+    } else {
+        return RVec::new();
+    };
+
+    let output = Command::new("nix")
+        .arg("search")
+        .arg("--json")
+        .arg("nixpkgs")
+        .arg(&input.to_string())
+        .output()
+        .expect("Failed to execute command");
+
+    let json_output = String::from_utf8_lossy(&output.stdout);
+
+    println!("{}", json_output);
+
+    let parsed_json: Value = serde_json::from_str(&json_output).unwrap_or(json!("{}"));
+
+    parsed_json
+        .as_object()
+        .unwrap_or(&Map::new())
+        .iter()
+        .take(config.max_entries)
+        .map(|(package_name, metadata)| {
+            let description = metadata
+                .get("description")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+
+            Match {
+                title: package_name.clone().into(),
+                icon: ROption::RSome("".into()),
+                use_pango: false,
+                description: ROption::RSome(description.into()),
+                id: ROption::RNone, // The ID can be used for identifying the match later, is not required
+            }
+        })
+        .collect()
 }
 
 #[handler]
