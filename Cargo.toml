@@ -10,3 +10,4 @@ crate-type = ["cdylib"] # Required to build a dynamic library that can be loaded
 anyrun-plugin = { git = "https://github.com/Kirottu/anyrun" }
 abi_stable = "0.11.1"
 serde = { version = "1.0.210", features = ["derive"] }
+ron = "0.8.1"
