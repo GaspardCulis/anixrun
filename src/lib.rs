@@ -1,15 +1,28 @@
 use std::fs;
-use std::process::Command;
 
-use abi_stable::std_types::{ROption, RString, RVec};
+use abi_stable::std_types::{RString, RVec};
 use anyrun_plugin::*;
 use serde::Deserialize;
-use serde_json::{json, Map, Value};
+
+pub mod search;
 
 #[derive(Deserialize)]
 pub struct Config {
     prefix: String,
     max_entries: usize,
+    search_engine: SearchEngine,
+}
+
+#[derive(Deserialize)]
+pub enum SearchEngine {
+    /// Uses search.nixos.org to find packages.
+    /// Pros: Kinda fast, nice indexing.
+    /// Cons: Requires internet connection. Might get rate limited
+    Online,
+    /// Uses `nix search nixpkgs` command to find packages.
+    /// Pros: Work offline, kinda fast too
+    /// Cons: Result ordering is generally less relevant than using search.nixos.org
+    Offline,
 }
 
 impl Default for Config {
@@ -17,6 +30,7 @@ impl Default for Config {
         Self {
             prefix: ":nix".to_string(),
             max_entries: 3,
+            search_engine: SearchEngine::Offline,
         }
     }
 }
@@ -45,40 +59,7 @@ fn get_matches(input: RString, config: &Config) -> RVec<Match> {
         return RVec::new();
     };
 
-    let output = Command::new("nix")
-        .arg("search")
-        .arg("--json")
-        .arg("nixpkgs")
-        .arg(&input.to_string())
-        .output()
-        .expect("Failed to execute command");
-
-    let json_output = String::from_utf8_lossy(&output.stdout);
-
-    println!("{}", json_output);
-
-    let parsed_json: Value = serde_json::from_str(&json_output).unwrap_or(json!("{}"));
-
-    parsed_json
-        .as_object()
-        .unwrap_or(&Map::new())
-        .iter()
-        .take(config.max_entries)
-        .map(|(package_name, metadata)| {
-            let description = metadata
-                .get("description")
-                .and_then(Value::as_str)
-                .unwrap_or("");
-
-            Match {
-                title: package_name.clone().into(),
-                icon: ROption::RSome("".into()),
-                use_pango: false,
-                description: ROption::RSome(description.into()),
-                id: ROption::RNone, // The ID can be used for identifying the match later, is not required
-            }
-        })
-        .collect()
+    config.search_engine.search(&input.to_string(), config)
 }
 
 #[handler]
