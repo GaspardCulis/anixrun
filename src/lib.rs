@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{env, fs, path::PathBuf};
 
 use abi_stable::std_types::{RString, RVec};
 use anyrun_plugin::*;
@@ -28,11 +28,13 @@ pub enum SearchEngine {
 
 impl Default for Config {
     fn default() -> Self {
+        let home_dir = env::var("HOME").unwrap_or_else(|_| String::from("/"));
+
         Self {
             prefix: ":nix".to_string(),
             max_entries: 3,
             search_engine: SearchEngine::Offline,
-            index_database_path: "/home/gaspard/.cache/nix-index/files".into(),
+            index_database_path: PathBuf::from(home_dir).join(".cache/nix-index/files"),
         }
     }
 }
