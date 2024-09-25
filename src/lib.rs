@@ -12,19 +12,6 @@ pub struct Config {
     max_entries: usize,
     exact_match: bool,
     index_database_path: PathBuf,
-    search_engine: SearchEngine,
-}
-
-#[derive(Deserialize)]
-pub enum SearchEngine {
-    /// Uses search.nixos.org to find packages.
-    /// Pros: Kinda fast, nice indexing.
-    /// Cons: Requires internet connection. Might get rate limited
-    Online,
-    /// Uses `nix search nixpkgs` command to find packages.
-    /// Pros: Work offline, kinda fast too
-    /// Cons: Result ordering is generally less relevant than using search.nixos.org
-    Offline,
 }
 
 impl Default for Config {
@@ -36,7 +23,6 @@ impl Default for Config {
             max_entries: 3,
             exact_match: false,
             index_database_path: PathBuf::from(home_dir).join(".cache/nix-index/files"),
-            search_engine: SearchEngine::Offline,
         }
     }
 }
@@ -65,7 +51,7 @@ fn get_matches(input: RString, config: &Config) -> RVec<Match> {
         return RVec::new();
     };
 
-    match config.search_engine.search(&input.to_string(), config) {
+    match search::search(&input.to_string(), config) {
         Ok(matches) => matches,
         Err(error) => RVec::from_slice(&[Match {
             title: error.description().into(),
