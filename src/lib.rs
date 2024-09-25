@@ -88,15 +88,14 @@ fn handler(selection: Match, state: &State) -> HandleResult {
         .get(&selection.id.expect("Should be Some"))
         .expect("Should exist");
 
-    let child = Command::new("nix-shell")
+    match Command::new("nix-shell")
         .arg("-p")
         .arg(match_data.package_noversion.clone())
         .arg("--run")
         .arg(match_data.binary_name.clone())
         .spawn()
-        .expect("Failed to spawn child process");
-
-    std::mem::forget(child);
-
-    HandleResult::Close
+    {
+        Ok(_) => HandleResult::Close,
+        Err(error) => HandleResult::Stdout(error.to_string().into_bytes().into()),
+    }
 }
