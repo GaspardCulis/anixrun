@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, path::PathBuf};
 
 use abi_stable::std_types::{RString, RVec};
 use anyrun_plugin::*;
@@ -11,6 +11,7 @@ pub struct Config {
     prefix: String,
     max_entries: usize,
     search_engine: SearchEngine,
+    index_database_path: PathBuf,
 }
 
 #[derive(Deserialize)]
@@ -31,6 +32,7 @@ impl Default for Config {
             prefix: ":nix".to_string(),
             max_entries: 3,
             search_engine: SearchEngine::Offline,
+            index_database_path: "/home/gaspard/.cache/nix-index/files".into(),
         }
     }
 }

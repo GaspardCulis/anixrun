@@ -1,8 +1,8 @@
-use std::process::Command;
-
 use abi_stable::std_types::{ROption, RVec};
 use anyrun_plugin::*;
-use serde_json::{json, Map, Value};
+use nix_index::database;
+use nix_index::files::FileTreeEntry;
+use regex::bytes::Regex;
 
 use crate::{Config, SearchEngine};
 
@@ -11,41 +11,40 @@ impl SearchEngine {
         match self {
             SearchEngine::Online => todo!(),
             SearchEngine::Offline => {
-                let output = Command::new("nix")
-                    .arg("search")
-                    .arg("--json")
-                    .arg("nixpkgs")
-                    .arg(query)
-                    .output()
-                    .expect("Failed to execute command");
+                let query_regex = format!("^/bin/{}$", regex::escape(query));
 
-                let json_output = String::from_utf8_lossy(&output.stdout);
+                println!("Searching for {}", query_regex);
 
-                let parsed_json: Value = serde_json::from_str(&json_output).unwrap_or(json!("{}"));
+                let pattern = Regex::new(&query_regex).expect("Failed to build regex");
 
-                parsed_json
-                    .as_object()
-                    .unwrap_or(&Map::new())
-                    .iter()
-                    .take(config.max_entries)
-                    .map(|(_, metadata)| {
-                        let package_name =
-                            metadata.get("pname").and_then(Value::as_str).unwrap_or("");
+                let db = database::Reader::open(&config.index_database_path)
+                    .expect("Failed to open database");
 
-                        let description = metadata
-                            .get("description")
-                            .and_then(Value::as_str)
-                            .unwrap_or("");
-
-                        Match {
-                            title: package_name.into(),
-                            icon: ROption::RSome("".into()),
-                            use_pango: false,
-                            description: ROption::RSome(description.into()),
-                            id: ROption::RNone, // The ID can be used for identifying the match later, is not required
+                let results = db
+                    .query(&pattern)
+                    .run()
+                    .expect("Failed to query db")
+                    .take(16)
+                    .filter_map(|result| match result {
+                        Ok((store_path, FileTreeEntry { path, node })) => {
+                            println!("HAHA: {}", store_path.as_str());
+                            let run_match = Match {
+                                title: store_path.name().into(),
+                                description: ROption::RNone,
+                                use_pango: false,
+                                icon: ROption::RNone,
+                                id: ROption::RNone,
+                            };
+                            Some(run_match)
+                        }
+                        Err(error) => {
+                            println!("Encountered error while unwrapping result: {:?}", error);
+                            None
                         }
                     })
-                    .collect()
+                    .collect();
+                println!("Over");
+                results
             }
         }
     }
