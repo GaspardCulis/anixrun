@@ -1,4 +1,7 @@
-use std::path::PathBuf;
+use std::{
+    hash::{DefaultHasher, Hash, Hasher},
+    path::PathBuf,
+};
 
 use abi_stable::std_types::{ROption, RVec};
 use anyrun_plugin::*;
@@ -7,7 +10,7 @@ use nix_index::database;
 use nix_index::files::FileTreeEntry;
 use regex::bytes::Regex;
 
-use crate::Config;
+use crate::{MatchData, State};
 
 error_chain! {
     errors {
@@ -24,7 +27,9 @@ error_chain! {
     }
 }
 
-pub fn search(query: &String, config: &Config) -> Result<RVec<Match>> {
+pub fn search(query: &String, state: &mut State) -> Result<RVec<Match>> {
+    let config = &state.config;
+
     let query_regex = if config.exact_match {
         format!("^/bin/{}$", regex::escape(query))
     } else {
@@ -43,21 +48,41 @@ pub fn search(query: &String, config: &Config) -> Result<RVec<Match>> {
         .take(config.max_entries)
         .filter_map(|result| match result {
             Ok((store_path, FileTreeEntry { path, node: _ })) => {
-                let binary = String::from_utf8_lossy(&path);
+                let id = {
+                    let mut s = DefaultHasher::new();
+                    store_path.hash().hash(&mut s);
+                    s.finish()
+                };
+
+                let binary_path = String::from_utf8_lossy(&path).to_string();
+                let data = MatchData {
+                    package: store_path.name().to_string(),
+                    package_noversion: store_path.origin().attr.clone(),
+                    binary_name: binary_path
+                        .split("/")
+                        .last()
+                        .expect("Should contain /bin")
+                        .to_string(),
+                    binary_path,
+                };
+
                 let run_match = Match {
-                    title: binary.split("/").last().unwrap_or("Error").into(),
+                    title: data.package_noversion.clone().into(),
                     use_pango: true,
                     description: ROption::RSome(
                         format!(
                             "Run <big>{}</big> from <big>{}</big> package",
-                            binary,
-                            store_path.name()
+                            data.binary_path, data.package
                         )
                         .into(),
                     ),
                     icon: ROption::RNone,
-                    id: ROption::RNone,
+                    id: ROption::RSome(id),
                 };
+
+                // Add match to state
+                state.match_data.insert(id, data);
+
                 Some(run_match)
             }
             Err(error) => {
