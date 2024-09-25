@@ -1,6 +1,6 @@
 # AnixRun
 
-Quickly search and run nixpkgs programs.
+This is an [anyrun](https://github.com/anyrun-org/anyrun) plugin to quickly search and run nixpkgs programs.
 
 ## Requirements
 
