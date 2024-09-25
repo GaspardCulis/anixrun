@@ -10,8 +10,9 @@ pub mod search;
 pub struct Config {
     prefix: String,
     max_entries: usize,
-    search_engine: SearchEngine,
+    exact_match: bool,
     index_database_path: PathBuf,
+    search_engine: SearchEngine,
 }
 
 #[derive(Deserialize)]
@@ -33,8 +34,9 @@ impl Default for Config {
         Self {
             prefix: ":nix".to_string(),
             max_entries: 3,
-            search_engine: SearchEngine::Offline,
+            exact_match: false,
             index_database_path: PathBuf::from(home_dir).join(".cache/nix-index/files"),
+            search_engine: SearchEngine::Offline,
         }
     }
 }
