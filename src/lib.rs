@@ -1,6 +1,6 @@
 use std::{env, fs, path::PathBuf};
 
-use abi_stable::std_types::{RString, RVec};
+use abi_stable::std_types::{ROption, RString, RVec};
 use anyrun_plugin::*;
 use serde::Deserialize;
 
@@ -65,7 +65,16 @@ fn get_matches(input: RString, config: &Config) -> RVec<Match> {
         return RVec::new();
     };
 
-    config.search_engine.search(&input.to_string(), config)
+    match config.search_engine.search(&input.to_string(), config) {
+        Ok(matches) => matches,
+        Err(error) => RVec::from_slice(&[Match {
+            title: error.description().into(),
+            use_pango: false,
+            description: ROption::RSome(error.to_string().into()),
+            icon: ROption::RNone,
+            id: ROption::RNone,
+        }]),
+    }
 }
 
 #[handler]
