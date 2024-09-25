@@ -27,11 +27,19 @@ impl SearchEngine {
                     .expect("Failed to query db")
                     .take(config.max_entries)
                     .filter_map(|result| match result {
-                        Ok((store_path, FileTreeEntry { path, node })) => {
+                        Ok((store_path, FileTreeEntry { path, node: _ })) => {
+                            let binary = String::from_utf8_lossy(&path);
                             let run_match = Match {
-                                title: store_path.name().into(),
-                                description: ROption::RNone,
-                                use_pango: false,
+                                title: binary.split("/").last().unwrap_or("Error").into(),
+                                description: ROption::RSome(
+                                    format!(
+                                        "Run <big>{}</big> from <big>{}</big> package",
+                                        binary,
+                                        store_path.name()
+                                    )
+                                    .into(),
+                                ),
+                                use_pango: true,
                                 icon: ROption::RNone,
                                 id: ROption::RNone,
                             };
